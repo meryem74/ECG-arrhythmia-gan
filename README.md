@@ -25,10 +25,16 @@ bileşen) ve T dalgası (repolarizasyon).
 | 3 | F | Fusion beat |
 | 4 | Q | Unknown / Paced |
 
-**Temel zorluk:** Normal (N) atımlar eğitim setinin **~%82**'sini oluşturur
-(72.471 / 87.554); en nadir sınıf **F yalnızca 641 atım (%0.7)**. Dengesiz veriyle
-eğitilen model yüksek *accuracy* alır ama kritik aritmileri kaçırır (yüksek
-false-negative). Bu yüzden **macro-F1 ve recall (sensitivity)** önceliklendirilir.
+---
+
+## ⚠️ Problem: Aşırı Sınıf Dengesizliği
+
+Normal (N) atımlar eğitim setinin **~%82**'sini oluşturur (72.471 / 87.554);
+en nadir sınıf **F yalnızca 641 atım (%0.7)**. Dengesiz veriyle eğitilen model
+yüksek *accuracy* alır ama kritik aritmileri kaçırır (yüksek false-negative).
+Bu yüzden **macro-F1 ve recall (sensitivity)** önceliklendirilir.
+
+![MIT-BIH Sınıf Dağılımı](class_distribution.jpg)
 
 ---
 
@@ -54,8 +60,7 @@ false-negative). Bu yüzden **macro-F1 ve recall (sensitivity)** önceliklendiri
 ```
 
 - **CNN** — lokal morfolojiyi, özellikle keskin **QRS kompleksini** yakalar.
-- **CNN+LSTM** — konvolüsyonel özellikler üzerinde atımlar arası **ritim/zamansal
-  bağımlılığı** modeller (çift yönlü / bidirectional).
+- **CNN+LSTM** — atımlar arası **ritim/zamansal bağımlılığı** modeller (bidirectional).
 - **CNN+LSTM+Attention** — dizinin hangi bölümünün (genelde **R-peak/QRS**) tanıya
   en çok katkı verdiğini öğrenir → hem doğruluk hem **yorumlanabilirlik**.
 
@@ -65,16 +70,12 @@ false-negative). Bu yüzden **macro-F1 ve recall (sensitivity)** önceliklendiri
 
 ```
 .
-├── data/                      # MIT-BIH & PTBDB CSV'leri
-│   ├── mitbih_train.csv
-│   ├── mitbih_test.csv
-│   ├── ptbdb_normal.csv
-│   └── ptbdb_abnormal.csv
-├── data_loader.py             # CSV okuma, dengeleme, augmentation, Dataset/DataLoader
-├── models.py                  # CNN, CNNLSTM, CNNLSTMAttention, Generator, Discriminator
-├── evaluate.py                # Meter, confusion matrix, precision/recall/F1, attention viz
-├── train.py                   # GAN + sınıflandırıcı eğitimini koordine eden ana dosya
-├── checkpoints/               # eğitilmiş modeller + grafikler (otomatik oluşur)
+├── data/                  # MIT-BIH & PTBDB CSV'leri (repoda yok, ayrıca indirilir)
+├── data_loader.py         # CSV okuma, dengeleme, augmentation, Dataset/DataLoader
+├── models.py              # CNN, CNNLSTM, CNNLSTMAttention, Generator, Discriminator
+├── evaluate.py            # Meter, confusion matrix, precision/recall/F1, attention viz
+├── train.py               # GAN + sınıflandırıcı eğitimini koordine eden ana dosya
+├── requirements.txt
 └── README.md
 ```
 
@@ -83,40 +84,33 @@ false-negative). Bu yüzden **macro-F1 ve recall (sensitivity)** önceliklendiri
 ## ⚙️ Kurulum / Setup
 
 ```bash
-pip install torch numpy pandas scikit-learn matplotlib seaborn
+pip install -r requirements.txt
 ```
-> Colab'de bu paketler hazır gelir; GPU runtime (T4) önerilir.
 
-`data/` klasörünün çalıştırma dizininde (Colab'de `/content/data/`) olduğundan
-emin olun:
-```bash
-ls data/   # mitbih_train.csv vs. görünmeli
+**Veri kurulumu:** MIT-BIH ve PTBDB CSV'leri repoya dahil değildir (boyut).
+PhysioNet / Kaggle "Heartbeat" dağıtımından indirip `data/` klasörüne koyun:
+```
+data/mitbih_train.csv, data/mitbih_test.csv,
+data/ptbdb_normal.csv, data/ptbdb_abnormal.csv
 ```
 
 ---
 
 ## 🚀 Kullanım / Usage
 
-**1) Hızlı doğrulama (GAN atlanır, ~15–30 dk):**
 ```bash
+# Hızlı doğrulama (GAN atlanır, ~15-30 dk)
 python train.py --no-gan --clf-epochs 10
-```
 
-**2) Tam boru hattı (GAN dahil, ~1.5–2.5 saat, GPU şart):**
-```bash
+# Tam boru hattı (GAN dahil, ~1.5-2.5 saat, GPU şart)
 python train.py --gan-epochs 1500 --clf-epochs 25
 ```
-
-**Argümanlar:**
 
 | Argüman | Varsayılan | Açıklama |
 |---------|-----------|----------|
 | `--no-gan` | kapalı | GAN augmentation'ı atla |
 | `--gan-epochs` | 3000 | GAN eğitim epoch sayısı |
 | `--clf-epochs` | 30 | Sınıflandırıcı epoch sayısı |
-
-Daha fazla ayar (`batch_size`, `synthetic_per_class`, `minority_classes`) için
-`train.py` içindeki `Config` sınıfına bakın.
 
 ---
 
@@ -130,25 +124,22 @@ Daha fazla ayar (`batch_size`, `synthetic_per_class`, `minority_classes`) için
 | `Generator` / `Discriminator` | 1D-LSTM GAN | Sentetik azınlık atımı |
 
 `ConvNormPool`: nedensel (causal) padding + artık (residual) bağlantı + Swish +
-MaxPool. Sınıflandırıcılar **logit** döndürür (çift-softmax hatası giderildi);
-`CrossEntropyLoss` ile uyumlu.
+MaxPool. Sınıflandırıcılar **logit** döndürür (çift-softmax hatası giderildi).
 
 ---
 
 ## 📊 Değerlendirme Metrikleri / Evaluation
 
-Dengesiz veri nedeniyle **accuracy tek başına yanıltıcıdır**. Raporlanan metrikler:
-
+Dengesiz veride **accuracy tek başına yanıltıcıdır**:
 - **Recall (Sensitivity):** Gerçek aritmilerin kaçı yakalandı? *(en kritik)*
 - **Precision (PPV):** Aritmi denenlerin kaçı doğru?
-- **Macro-F1:** Precision/recall harmonik ortalaması, sınıf bazında eşit ağırlık.
-- **Confusion Matrix:** Hangi aritminin hangisiyle karıştığı.
+- **Macro-F1:** Sınıf bazında eşit ağırlık → azınlık sınıflar görünür.
 
 ---
 
 ## 📈 Sonuçlar / Results (MIT-BIH Test, 21.892 atım)
 
-**Final performans — GAN augmentation ile (makro-ortalama):**
+**Final performans — GAN augmentation ile:**
 
 | Model | Accuracy | Macro-F1 | Macro-Recall |
 |-------|:--------:|:--------:|:------------:|
@@ -157,7 +148,7 @@ Dengesiz veri nedeniyle **accuracy tek başına yanıltıcıdır**. Raporlanan m
 | CNN+LSTM+Attention | 97.67% | 88.00% | 93.92% |
 | **Ensemble (soft voting)** | **98.01%** | **88.95%** | **94.06%** |
 
-**Ensemble — sınıf bazlı (final):**
+**Ensemble — sınıf bazlı:**
 
 | Sınıf | Precision | Recall | F1-score | Support |
 |-------|:---------:|:------:|:--------:|:-------:|
@@ -167,71 +158,63 @@ Dengesiz veri nedeniyle **accuracy tek başına yanıltıcıdır**. Raporlanan m
 | F | 56.52% | 88.27% | 68.92% | 162 |
 | Q | 99.32% | 99.44% | 99.38% | 1.608 |
 
+![Confusion Matrix - Ensemble](cm_ensemble.jpg)
+
 **GAN augmentation etkisi (ablation, Ensemble):**
 
-| Yapılandırma | Accuracy | Macro-F1 | Macro-Recall | S-Precision | F-Precision |
-|--------------|:--------:|:--------:|:------------:|:-----------:|:-----------:|
-| GAN'siz (resample) | 97.43% | 87.15% | 94.92% | 66.89% | 51.75% |
-| **GAN'li** | **98.01%** | **88.95%** | 94.06% | **76.45%** | **56.52%** |
+| Yapılandırma | Accuracy | Macro-F1 | S-Precision | F-Precision |
+|--------------|:--------:|:--------:|:-----------:|:-----------:|
+| GAN'siz (resample) | 97.43% | 87.15% | 66.89% | 51.75% |
+| **GAN'li** | **98.01%** | **88.95%** | **76.45%** | **56.52%** |
 
-**Yorum:** GAN sentetik verisi, hedeflenen en nadir sınıfların precision'ını
-belirgin artırdı (**S +9.6 puan, F +4.8 puan**) ve macro-F1'i +1.8 puan yükseltti.
-Macro-recall'da küçük bir düşüş (-0.86 puan) bilinçli bir precision-recall
-dengesidir: model azınlık sınıflarda daha az "yanlış alarm" üretir. Tüm sınıflarda
-recall ≥ %88 → klinik olarak kritik aritmiler büyük oranda yakalanır.
-
-Çıktı grafikleri `checkpoints/` altına kaydedilir: `cm_*.png` (confusion matrix'ler),
-`attention_example.png`, `synthetic_class*.npy` (sentetik atımlar).
+GAN sentetik verisi, hedeflenen en nadir sınıfların precision'ını belirgin artırdı
+(**S +9.6 puan, F +4.8 puan**). Tüm sınıflarda recall ≥ %88.
 
 ---
 
 ## 🔍 Yorumlanabilirlik / Interpretability
 
-`evaluate.plot_attention`, attention ağırlıklarını LSTM zaman adımlarından sinyalin
-187 örneğine interpolasyonla geri ölçekleyip EKG'nin üstüne sıcak harita olarak
-bindirir. Deneylerde modelin dikkati bir V (ventriküler) atımında **R-peak/QRS
-yükselişine** yoğunlaşmış, sinyalin düz/sıfır bölgesine hiç bakmamıştır — yani
+Attention ağırlıkları LSTM zaman adımlarından sinyalin 187 örneğine geri ölçeklenip
+EKG'nin üstüne bindirilir. Modelin dikkati bir V (ventriküler) atımında
+**R-peak/QRS yükselişine** yoğunlaşmış, düz/sıfır bölgeye hiç bakmamıştır — yani
 model kararını klinik olarak anlamlı bir bölgeye dayandırır (kara kutu değil).
+
+![Attention Overlay - V beat](attention_V.jpg)
 
 ---
 
 ## 🧬 GAN: Gerçek vs. Sentetik
 
-1D-LSTM GAN, her azınlık sınıf için ayrı eğitilir (`generator_class*.pth`) ve
-sentetik atımlar (`synthetic_class*.npy`) üretir. GAN, her sınıfın çekirdek
-morfolojisini (R-peak, dalga şekli, zero-padding) sınıfa-özel öğrenmiştir.
-
-**Bilinen sınırlama:** Discriminator bazı sınıflarda (özellikle V, Q) baskın geldiği
+1D-LSTM GAN her azınlık sınıf için ayrı eğitilir ve sentetik atımlar üretir; her
+sınıfın çekirdek morfolojisini (R-peak, dalga şekli, zero-padding) sınıfa-özel
+öğrenir. **Bilinen sınırlama:** Discriminator bazı sınıflarda (V, Q) baskın geldiği
 için sentetik atımlar gerçeklere göre **daha az çeşitlidir (kısmi mode collapse)**.
-Sınırlı çeşitliliğe rağmen augmentation S/F precision'ını artırmaya yetmiştir.
-
----
-
-## 🗂️ Veri Setleri / Datasets
-
-- **MIT-BIH Arrhythmia** — 5 sınıflı atım sınıflandırması (ana görev).
-- **PTBDB** — ikili (normal vs. miyokard enfarktüsü) sinyaller (opsiyonel görev).
-
-Kaynak: PhysioNet (Kaggle "Heartbeat" dağıtımı).
 
 ---
 
 ## 📝 Tasarım Notları / Design Decisions
 
-1. **Sızıntısız bölme:** Validation ham (dengelenmemiş) train'den ayrılır; dengeleme
-   ve sentetik veri yalnızca eğitim setine eklenir → data leakage engellenir.
-2. **GAN > basit upsample:** Kopyalamak ezberi körükler; GAN çeşitli sentetik örnek
-   üretip genellemeyi destekler.
-3. **Logit çıktısı:** Modeller softmax uygulamaz; `CrossEntropyLoss` ile çift-softmax
-   hatası giderildi.
-4. **Yorumlanabilir attention:** Additive attention LSTM zaman adımları üzerine
-   uygulanır; ağırlıklar toplamı 1 olan, sinyale bindirilebilir bir dağılımdır.
-5. **Augmentation hijyeni:** Gauss gürültüsü yalnızca eğitimde; test/validation'a asla.
+1. **Sızıntısız bölme:** Validation ham train'den ayrılır; dengeleme & sentetik
+   yalnızca eğitime eklenir → data leakage engellenir.
+2. **GAN > basit upsample:** Kopyalamak ezberi körükler; GAN çeşitli sentetik
+   örnek üretip genellemeyi destekler.
+3. **Logit çıktısı:** Modeller softmax uygulamaz; `CrossEntropyLoss` ile uyumlu.
+4. **Yorumlanabilir attention:** Additive attention, sinyale bindirilebilir dağılım.
+5. **Augmentation hijyeni:** Gauss gürültüsü yalnızca eğitimde; test/val'a asla.
 
 ---
 
 ## 🔭 Gelecek İş / Future Work
 
 - Çok-lead (multi-lead) sinyal ve hasta-bazlı (inter-patient) bölme.
-- GAN çeşitliliğini artırmak için **WGAN-GP**, **conditional GAN**, label smoothing.
-- Sentetik verinin klinik geçerliliğinin uzman (kardiyolog) tarafından doğrulanması.
+- GAN çeşitliliği için **WGAN-GP**, **conditional GAN**, label smoothing.
+- Sentetik verinin klinik geçerliliğinin kardiyolog onayından geçirilmesi.
+
+---
+
+## 🗂️ Veri Setleri
+
+- **MIT-BIH Arrhythmia** — 5 sınıflı atım sınıflandırması (ana görev).
+- **PTBDB** — ikili (normal vs. miyokard enfarktüsü) sinyaller (opsiyonel).
+
+Kaynak: PhysioNet (Kaggle "Heartbeat" dağıtımı).
