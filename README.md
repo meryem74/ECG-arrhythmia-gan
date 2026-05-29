@@ -34,7 +34,7 @@ en nadir sınıf **F yalnızca 641 atım (%0.7)**. Dengesiz veriyle eğitilen mo
 yüksek *accuracy* alır ama kritik aritmileri kaçırır (yüksek false-negative).
 Bu yüzden **macro-F1 ve recall (sensitivity)** önceliklendirilir.
 
-![MIT-BIH Sınıf Dağılımı](class_distribution.jpg)
+![MIT-BIH Sınıf Dağılımı](assets/class_distribution.jpg)
 
 ---
 
@@ -158,7 +158,7 @@ Dengesiz veride **accuracy tek başına yanıltıcıdır**:
 | F | 56.52% | 88.27% | 68.92% | 162 |
 | Q | 99.32% | 99.44% | 99.38% | 1.608 |
 
-![Confusion Matrix - Ensemble](cm_ensemble.jpg)
+![Confusion Matrix - Ensemble](assets/cm_ensemble.jpg)
 
 **GAN augmentation etkisi (ablation, Ensemble):**
 
@@ -179,7 +179,7 @@ EKG'nin üstüne bindirilir. Modelin dikkati bir V (ventriküler) atımında
 **R-peak/QRS yükselişine** yoğunlaşmış, düz/sıfır bölgeye hiç bakmamıştır — yani
 model kararını klinik olarak anlamlı bir bölgeye dayandırır (kara kutu değil).
 
-![Attention Overlay - V beat](attention_V.jpg)
+![Attention Overlay - V beat](assets/attention_V.jpg)
 
 ---
 
