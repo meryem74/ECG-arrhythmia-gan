@@ -158,7 +158,7 @@ Dengesiz veride **accuracy tek başına yanıltıcıdır**:
 | F | 56.52% | 88.27% | 68.92% | 162 |
 | Q | 99.32% | 99.44% | 99.38% | 1.608 |
 
-![Confusion Matrix - Ensemble](assets/cm_ensemble.jpg)
+![Confusion Matrix - Ensemble](assets/cm_ensemble. jpg)
 
 **GAN augmentation etkisi (ablation, Ensemble):**
 
